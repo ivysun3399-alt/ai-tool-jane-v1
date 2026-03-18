@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 注意：三个prompt必须根据你看到的实际竞品图片特点来定制，不要用我给的示例。每个英文prompt要详细（50词以上），包含具体的场景、光线、构图、色调描述，能直接用于Stable Diffusion/Midjourney/Nano Banana等AI图片生成工具。`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
