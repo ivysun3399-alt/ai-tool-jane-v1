@@ -69,7 +69,7 @@ export default async function handler(req, res) {
         'X-Title': 'Amazon Product Image Analyzer'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+        model: 'openrouter/free',
         max_tokens: 2048,
         messages: [
           {
