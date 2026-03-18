@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>亚马逊竞品图分析 · AI选图助手</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand: #FF9900;
+    --brand-dark: #e68a00;
+    --blue: #1a56db;
+    --blue-light: #ebf3ff;
+    --surface: #ffffff;
+    --bg: #f5f6fa;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,.1), 0 16px 40px rgba(0,0,0,.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #131921 0%, #1a2a3a 100%);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--brand);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  header h1 {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: .2px;
+  }
+  header span {
+    color: rgba(255,255,255,.45);
+    font-size: 13px;
+    margin-left: 4px;
+  }
+
+  /* ── Layout ── */
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+  }
+
+  /* ── Step indicator ── */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 32px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .step.active { color: var(--blue); }
+  .step.done { color: #10b981; }
+  .step-num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--blue); color: #fff; }
+  .step.done .step-num { background: #10b981; color: #fff; }
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin: 0 10px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--blue-light);
+    color: var(--blue);
+  }
+
+  /* ── Upload zone ── */
+  #drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: var(--blue);
+    background: var(--blue-light);
+  }
+  #drop-zone .icon { font-size: 36px; margin-bottom: 12px; }
+  #drop-zone p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  #drop-zone strong { color: var(--blue); }
+  #file-input { display: none; }
+
+  /* ── Preview ── */
+  #preview-wrap {
+    display: none;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  #preview-wrap.visible { display: flex; }
+  #preview-img {
+    width: 160px;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .preview-info { flex: 1; }
+  .preview-info .file-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  .preview-info .file-meta { font-size: 13px; color: var(--muted); }
+  #btn-reupload {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+  }
+  .btn-primary {
+    background: var(--brand);
+    color: #111;
+    width: 100%;
+    margin-top: 20px;
+  }
+  .btn-primary:hover { background: var(--brand-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,153,0,.35); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-blue {
+    background: var(--blue);
+    color: #fff;
+    width: 100%;
+    margin-top: 8px;
+    font-size: 16px;
+    padding: 14px 28px;
+  }
+  .btn-blue:hover { background: #1448b8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,86,219,.35); }
+  .btn-blue:active { transform: translateY(0); }
+  .btn-blue:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* ── Loading ── */
+  .loading-wrap {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px;
+    gap: 16px;
+  }
+  .loading-wrap.visible { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 14px; }
+  .loading-steps { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.8; }
+
+  /* ── Analysis card ── */
+  #analysis-section { display: none; }
+  #analysis-section.visible { display: block; }
+
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 540px) { .analysis-grid { grid-template-columns: 1fr; } }
+  .analysis-item {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .analysis-item .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .analysis-item .value {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .highlights-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .highlight-chip {
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  /* ── Prompt cards ── */
+  .prompts-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 8px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .prompt-grid { display: flex; flex-direction: column; gap: 12px; }
+  .prompt-card {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+  .prompt-card:hover { border-color: #93c5fd; background: #f8faff; }
+  .prompt-card.selected {
+    border-color: var(--blue);
+    background: var(--blue-light);
+    box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .prompt-card .check {
+    position: absolute;
+    top: 14px; right: 16px;
+    width: 22px; height: 22px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    transition: all .2s;
+    background: #fff;
+  }
+  .prompt-card.selected .check {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+  }
+  .prompt-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    background: var(--blue-light);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+    letter-spacing: .4px;
+  }
+  .prompt-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .prompt-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .prompt-text {
+    font-size: 12px;
+    color: #374151;
+    background: rgba(0,0,0,.03);
+    border-radius: 6px;
+    padding: 10px 12px;
+    line-height: 1.7;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 90px;
+    overflow: hidden;
+    transition: max-height .3s;
+  }
+  .prompt-card.selected .prompt-text,
+  .prompt-card:hover .prompt-text { max-height: 300px; }
+
+  /* ── Generate section ── */
+  #generate-section { display: none; }
+  #generate-section.visible { display: block; }
+
+  .how-to {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #166534;
+    line-height: 1.7;
+  }
+  .how-to strong { color: #14532d; }
+  .how-to ol { margin: 6px 0 0 18px; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #111827;
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transition: transform .3s ease;
+    white-space: nowrap;
+    z-index: 9999;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Error ── */
+  .error-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #991b1b;
+    font-size: 14px;
+    margin-top: 12px;
+    display: none;
+  }
+  .error-box.visible { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🔍</div>
+  <h1>亚马逊竞品图分析 <span>· AI选图助手</span></h1>
+</header>
+
+<div class="container">
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-num">1</div>上传竞品图</div>
+    <div class="step-line"></div>
+    <div class="step" id="s2"><div class="step-num">2</div>AI分析 & 选Prompt</div>
+    <div class="step-line"></div>
+    <div class="step" id="s3"><div class="step-num">3</div>生成产品图</div>
+  </div>
+
+  <!-- Card 1: Upload -->
+  <div class="card">
+    <div class="card-title">
+      📸 上传竞品展示图
+      <span class="badge">步骤 1</span>
+    </div>
+
+    <!-- Drop zone (before upload) -->
+    <div id="drop-zone">
+      <input type="file" id="file-input" accept="image/*">
+      <div class="icon">📤</div>
+      <p>拖拽图片到此处，或 <strong>点击上传</strong><br>
+      支持 JPG / PNG / WEBP，最大 8MB</p>
+    </div>
+
+    <!-- Preview (after upload) -->
+    <div id="preview-wrap">
+      <img id="preview-img" src="" alt="preview">
+      <div class="preview-info">
+        <div class="file-name" id="file-name"></div>
+        <div class="file-meta" id="file-meta"></div>
+        <button id="btn-reupload">↩ 重新上传</button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-wrap" id="loading-wrap">
+      <div class="spinner"></div>
+      <div class="loading-text">Gemini 正在分析图片…</div>
+      <div class="loading-steps" id="loading-step">正在识别场景与构图特点…</div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="error-box"></div>
+
+    <button class="btn btn-primary" id="btn-analyze" disabled>
+      🔍 分析竞品图片
+    </button>
+  </div>
+
+  <!-- Card 2: Analysis + Prompts -->
+  <div id="analysis-section">
+    <div class="card">
+      <div class="card-title">
+        📊 图片分析报告
+        <span class="badge">AI 解读</span>
+      </div>
+      <div class="analysis-grid" id="analysis-grid"></div>
+      <div id="highlights-wrap"></div>
+    </div>
+
+    <div class="card">
+      <div class="prompts-title">
+        ✨ 选择一个 Prompt 风格
+        <span class="badge">步骤 2</span>
+      </div>
+      <div class="prompt-grid" id="prompt-grid"></div>
+    </div>
+  </div>
+
+  <!-- Card 3: Generate -->
+  <div id="generate-section">
+    <div class="card">
+      <div class="card-title">
+        🚀 用 Nano Banana 生成图片
+        <span class="badge">步骤 3</span>
+      </div>
+      <div class="how-to">
+        <strong>操作说明（3步出图）：</strong>
+        <ol>
+          <li>点击下方按钮 → Prompt 自动复制到剪贴板 + 自动打开 Nano Banana</li>
+          <li>在 Nano Banana 中 <strong>粘贴 Prompt</strong>（Ctrl+V / Cmd+V）</li>
+          <li>上传你的商品图，点击生成 ✅</li>
+        </ol>
+      </div>
+      <div id="selected-prompt-preview" style="font-size:12px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:8px;font-family:monospace;line-height:1.7;word-break:break-all;"></div>
+      <button class="btn btn-blue" id="btn-generate" disabled>
+        🎨 复制Prompt并打开 Nano Banana →
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast">✅ Prompt 已复制！</div>
+
+<script>
+(function () {
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const previewWrap = document.getElementById('preview-wrap');
+  const previewImg = document.getElementById('preview-img');
+  const fileName = document.getElementById('file-name');
+  const fileMeta = document.getElementById('file-meta');
+  const btnReupload = document.getElementById('btn-reupload');
+  const btnAnalyze = document.getElementById('btn-analyze');
+  const loadingWrap = document.getElementById('loading-wrap');
+  const loadingStep = document.getElementById('loading-step');
+  const errorBox = document.getElementById('error-box');
+  const analysisSection = document.getElementById('analysis-section');
+  const generateSection = document.getElementById('generate-section');
+  const promptGrid = document.getElementById('prompt-grid');
+  const analysisGrid = document.getElementById('analysis-grid');
+  const highlightsWrap = document.getElementById('highlights-wrap');
+  const btnGenerate = document.getElementById('btn-generate');
+  const selectedPromptPreview = document.getElementById('selected-prompt-preview');
+  const toast = document.getElementById('toast');
+
+  let currentFile = null;
+  let selectedPrompt = null;
+
+  // ── Upload ──
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) setFile(f);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+  btnReupload.addEventListener('click', resetUpload);
+
+  function setFile(file) {
+    if (file.size > 8 * 1024 * 1024) {
+      showError('图片大小超过 8MB，请压缩后重试');
+      return;
+    }
+    currentFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    fileName.textContent = file.name;
+    fileMeta.textContent = `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`;
+    dropZone.style.display = 'none';
+    previewWrap.classList.add('visible');
+    btnAnalyze.disabled = false;
+    hideError();
+    // Reset results if re-uploading
+    analysisSection.classList.remove('visible');
+    generateSection.classList.remove('visible');
+    setStep(1);
+  }
+
+  function resetUpload() {
+    currentFile = null;
+    fileInput.value = '';
+    previewWrap.classList.remove('visible');
+    dropZone.style.display = 'block';
+    btnAnalyze.disabled = true;
+    analysisSection.classList.remove('visible');
+    generateSection.classList.remove('visible');
+    hideError();
+    setStep(1);
+  }
+
+  // ── Analyze ──
+  btnAnalyze.addEventListener('click', analyze);
+
+  async function analyze() {
+    if (!currentFile) return;
+    btnAnalyze.disabled = true;
+    previewWrap.classList.remove('visible');
+    loadingWrap.classList.add('visible');
+    hideError();
+    setStep(2);
+
+    const loadingMessages = [
+      '正在识别场景与构图特点…',
+      '分析色彩搭配与光线运用…',
+      '结合亚马逊运营视角深度解读…',
+      '生成专业 AI 图片生成提示词…'
+    ];
+    let mi = 0;
+    const loadingTimer = setInterval(() => {
+      mi = (mi + 1) % loadingMessages.length;
+      loadingStep.textContent = loadingMessages[mi];
+    }, 1800);
+
+    try {
+      const { base64, mimeType } = await fileToBase64(currentFile);
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mimeType })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '分析失败');
+
+      clearInterval(loadingTimer);
+      loadingWrap.classList.remove('visible');
+      previewWrap.classList.add('visible');
+      renderResults(data);
+    } catch (err) {
+      clearInterval(loadingTimer);
+      loadingWrap.classList.remove('visible');
+      previewWrap.classList.add('visible');
+      btnAnalyze.disabled = false;
+      showError('❌ ' + (err.message || '分析失败，请稍后重试'));
+      setStep(1);
+    }
+  }
+
+  function renderResults(data) {
+    // Analysis grid
+    const a = data.analysis || {};
+    const fields = [
+      { label: '📍 场景类型', value: a.scene },
+      { label: '🖼 构图特点', value: a.composition },
+      { label: '🎨 色彩搭配', value: a.color },
+      { label: '💡 光线运用', value: a.lighting },
+      { label: '✨ 整体风格', value: a.style }
+    ];
+    analysisGrid.innerHTML = fields.map(f => `
+      <div class="analysis-item">
+        <div class="label">${f.label}</div>
+        <div class="value">${f.value || '—'}</div>
+      </div>
+    `).join('');
+
+    const hl = a.highlights || [];
+    if (hl.length) {
+      highlightsWrap.innerHTML = `
+        <div style="margin-top:4px;">
+          <div class="label" style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">🏆 运营亮点</div>
+          <div class="highlights-list">${hl.map(h => `<span class="highlight-chip">${h}</span>`).join('')}</div>
+        </div>`;
+    }
+
+    // Prompts
+    const prompts = data.prompts || [];
+    promptGrid.innerHTML = prompts.map((p, i) => `
+      <div class="prompt-card" data-id="${p.id}" data-prompt="${encodeURIComponent(p.prompt)}">
+        <div class="check">✓</div>
+        <div class="prompt-num">PROMPT ${i + 1}</div>
+        <div class="prompt-title">${p.title}</div>
+        <div class="prompt-desc">${p.description}</div>
+        <div class="prompt-text">${p.prompt}</div>
+      </div>
+    `).join('');
+
+    promptGrid.querySelectorAll('.prompt-card').forEach(card => {
+      card.addEventListener('click', () => selectPrompt(card));
+    });
+
+    analysisSection.classList.add('visible');
+    generateSection.classList.add('visible');
+    analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setStep(2);
+  }
+
+  function selectPrompt(card) {
+    promptGrid.querySelectorAll('.prompt-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedPrompt = decodeURIComponent(card.dataset.prompt);
+    selectedPromptPreview.textContent = selectedPrompt;
+    btnGenerate.disabled = false;
+    setStep(3);
+    generateSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Generate ──
+  btnGenerate.addEventListener('click', async () => {
+    if (!selectedPrompt) return;
+    try {
+      await navigator.clipboard.writeText(selectedPrompt);
+      showToast('✅ Prompt 已复制！正在打开 Nano Banana…');
+    } catch {
+      showToast('⚠️ 请手动复制上方 Prompt，正在打开 Nano Banana…');
+    }
+    setTimeout(() => {
+      window.open('https://nanobanana.ai', '_blank');
+    }, 600);
+  });
+
+  // ── Helpers ──
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        const base64 = result.split(',')[1];
+        resolve({ base64, mimeType: file.type });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setStep(n) {
+    [1, 2, 3].forEach(i => {
+      const el = document.getElementById('s' + i);
+      el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    });
+  }
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.classList.add('visible');
+  }
+  function hideError() { errorBox.classList.remove('visible'); }
+
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+})();
+</script>
+</body>
+</html>

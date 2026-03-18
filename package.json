@@ -1,0 +1,9 @@
+{
+  "name": "ai-tool-jane-v1",
+  "version": "1.0.0",
+  "description": "Amazon competitive product image analyzer powered by Gemini",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
